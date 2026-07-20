@@ -57,3 +57,4 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta: 
         model = TodoList
         fields = ['id','nome', 'favorito', 'quantidade']
+        read_only_fields = ['user']  # O user não pode ser alterado via API
