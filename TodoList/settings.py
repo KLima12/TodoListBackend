@@ -15,7 +15,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 # TODO Configurar dps
-ALLOWED_HOSTS = ["localhost", "http://localhost:5173/", "localhost:5173", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "http://localhost:5173/", "127.0.0.1"]
 
 
 # Application definition
@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "Todo",
     "rest_framework",
     "rest_framework_simplejwt",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
@@ -40,6 +41,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
 ROOT_URLCONF = "TodoList.urls"
@@ -61,6 +63,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "TodoList.wsgi.application"
 
+CORS_ALLOWED_ORIGINS = [    "http://localhost:5173",]
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -71,7 +75,6 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        # 'rest_framework.authentication.SessionAuthentication', <--- REMOVA ESTA LINHA
     ),
 }
 
