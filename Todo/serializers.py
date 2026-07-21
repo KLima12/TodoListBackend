@@ -1,11 +1,14 @@
 from django.contrib.auth.models import User
+from rest_framework.response import Response
 from .models import TodoList
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from rest_framework.views import APIView
+from django.contrib.auth.hashers import check_password
 class RegisterSerializer(serializers.ModelSerializer): 
     class Meta: 
         model = User
@@ -20,7 +23,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
     
 class MyTokenSerializer(serializers.Serializer):
-    # Usamos um Serializer normal para ter controle total dos campos
+    """
+        Login com email e senha. 
+        Verifica senha é válida logo dps libera access token e refresh
+    """
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
@@ -28,31 +34,36 @@ class MyTokenSerializer(serializers.Serializer):
         email = attrs.get("email")
         password = attrs.get("password")
 
-        # 1. Busca o usuário pelo e-mail
+        print(f"🔍 Tentando login com email: {email}")
+        
+        # Busca o usuário pelo email
         user = User.objects.filter(email=email).first()
-
+        
         if user is None:
+            print("❌ Usuário não encontrado")
             raise AuthenticationFailed("Usuário não encontrado.")
 
-        # 2. Autentica usando o username real e a senha
-        authenticated_user = authenticate(username=user.username, password=password)
+        print(f"✅ Usuário encontrado: {user.username}")
+        print(f"🔐 Verificando senha...")
 
-        if authenticated_user is None:
+        if not check_password(password, user.password):
+            print("❌ Senha incorreta!")
             raise AuthenticationFailed("Senha incorreta.")
 
-        if not authenticated_user.is_active:
+        if not user.is_active:
+            print("❌ Usuário inativo")
             raise AuthenticationFailed("Esta conta está inativa.")
 
-        # 3. Geramos os tokens manualmente para o usuário autenticado
-        refresh = RefreshToken.for_user(authenticated_user)
+        print("✅ Senha correta! Gerando tokens...")
 
-        # 4. Retornamos o dicionário com os dados que a View vai entregar
+        # Gera tokens
+        refresh = RefreshToken.for_user(user)
+
         return {
-            "email": authenticated_user.email,
+            "email": user.email,
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }
-
 class TaskSerializer(serializers.ModelSerializer): 
     class Meta: 
         model = TodoList
