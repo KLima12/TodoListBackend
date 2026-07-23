@@ -1,26 +1,32 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer, MyTokenSerializer, TaskSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import RegisterSerializer, MyTokenSerializer, TaskSerializer, DetailsSeriaizer
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.conf import settings
-from .models import TodoList
+from .models import TodoList, DetalhesList
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import action
+from rest_framework import serializers
 class RegisterView(APIView): 
     permission_classes = [AllowAny] # Register público
     def post(self, request): 
-        # Request que vem do react
-        serializer = RegisterSerializer(data=request.data)
-        
-        if serializer.is_valid(): 
+        try:
+            serializer = RegisterSerializer(data=request.data)
+        except Exception as e: 
+            print(f"Erro: {e}")
+
+        if not serializer.is_valid(): 
+            print(f"Erros de validação: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+   
+        try: 
             user = serializer.save()
-
+    
             refresh = RefreshToken.for_user(user)
-
             return Response({ 
                 "user": { 
                     "id": user.id, 
@@ -29,9 +35,15 @@ class RegisterView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
             }, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+        except Exception as e: 
+            print(f"❌ Erro no registro: {str(e)}")
+            import traceback
+            traceback.print_exc()  # 👈 Mostra erro completo
+            
+            return Response(
+                {"detail": f"Erro interno: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 class LoginView(APIView):
     permission_classes = [AllowAny] # Público
     # Usamos um Serializer normal para ter controle total dos campos
@@ -70,11 +82,7 @@ class CustomRefreshView(APIView):
     def post(self, request): 
         refresh_token = request.data.get('refresh')
 
-        print("Tentando refresh token...")
-        print(f"Refresh token recebido: {refresh_token[:200]}")
-
         if not refresh_token: 
-            print("Refresh token não fornecido")
             return Response( 
                 {"detail": "Refresh token é obrigatório"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -91,7 +99,6 @@ class CustomRefreshView(APIView):
             new_refresh_token = None
             if settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS",  False): 
                 new_refresh_token = str(refresh)
-                print("Novo refresh token gerado")
 
             response_data = { 
                 'access': new_access_token
@@ -99,8 +106,6 @@ class CustomRefreshView(APIView):
 
             if new_refresh_token: 
                 response_data["refresh"] = new_refresh_token
-
-            print("Token renovados com sucesso!")
             return Response(response_data, status=status.HTTP_200_OK)
         
         except InvalidToken:
@@ -136,3 +141,65 @@ class TaskViewSet(ModelViewSet):
     # Garante que a tarefa criada pertence ao usuário logado.
     def perform_create(self, serializer): 
         serializer.save(user=self.request.user)
+
+
+class DetalhesViewSet(ModelViewSet):
+    """
+    ViewSet para gerenciar detalhes das tarefas.
+    URLs: /api/detalhes/
+    """
+    serializer_class = DetailsSeriaizer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Retorna todos os detalhes das tarefas do usuário"""
+        return DetalhesList.objects.filter(todo__user=self.request.user)
+
+    def get_todo(self, todo_id):
+        """Valida se a tarefa TODOList existe e pertence ao usuário"""
+        return get_object_or_404(
+            TodoList, 
+            id=todo_id, 
+            user=self.request.user
+        )
+
+    def perform_create(self, serializer):
+        """Cria detalhes para uma tarefa específica"""
+        todo_id = self.request.data.get('id')
+        
+        if not todo_id:
+            raise serializers.ValidationError(
+                {"task_id": "Este campo é obrigatório."}
+            )
+        
+        todo = self.get_todo(todo_id)
+
+        # Verificando se já tem detalhes na tarefa.
+
+        if hasattr(todo, "detalhe"): 
+            raise serializers.ValidationError(
+                "Esta tarefa já possui detalhes"
+            )
+
+        # Serializer ele já tem o dado do que vem do request, mas nao tem o do todo.
+        serializer.save(data=todo)
+
+    def perform_update(self, serializer):
+        """Atualiza detalhes existentes"""
+        todo_id = self.request.data.get('todo_id')
+        
+        if todo_id: 
+            todo = self.get_todo(todo_id)
+
+            serializer.save(todo=todo)
+        else: 
+            serializer.save()
+   
+    @action(detail=True, methods=['patch'])
+    def toggle_concluido(self, request, pk=None):
+        """
+        Alterna o status de concluído
+        """
+        detalhes = self.get_object() # Pegando DetalhesList
+        detalhes.concluido = not detalhes.concluido
+        detalhes.save()
