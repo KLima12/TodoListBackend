@@ -88,5 +88,5 @@ class TaskSerializer(serializers.ModelSerializer):
 class DetailsSeriaizer(serializers.ModelSerializer): 
     class Meta: 
         model = DetalhesList
-        fields = all
+        fields = ['id', 'detalhes','prioridade', 'concluido']
         

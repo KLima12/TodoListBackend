@@ -155,6 +155,7 @@ class DetalhesViewSet(ModelViewSet):
         """Retorna todos os detalhes das tarefas do usuário"""
         return DetalhesList.objects.filter(todo__user=self.request.user)
 
+    
     def get_todo(self, todo_id):
         """Valida se a tarefa TODOList existe e pertence ao usuário"""
         return get_object_or_404(
@@ -162,10 +163,28 @@ class DetalhesViewSet(ModelViewSet):
             id=todo_id, 
             user=self.request.user
         )
+    #Criando url e metodo get para ele.
+    @action(detail=False, methods=['get'], url_path='by_task')
+    def by_task(self, request): 
+        todo_id = request.query_params.get('todo_id')
+        if not todo_id: 
+            return Response({"error": "todo_id é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try: 
+            todo = self.get_todo(todo_id=todo_id)
+
+            detalhes = DetalhesList.objects.get(todo=todo)
+            serialzer = self.get_serializer(detalhes)
+            return Response(serialzer.data)
+        except DetalhesList.DoesNotExist: 
+            return Response({"error": "Esta tarefa não possui detalhes"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e: 
+            return Response({"error": str(e)})
 
     def perform_create(self, serializer):
         """Cria detalhes para uma tarefa específica"""
-        todo_id = self.request.data.get('id')
+        todo_id = self.request.data.get('id') or self.request.data.get('id')
         
         if not todo_id:
             raise serializers.ValidationError(
@@ -176,13 +195,11 @@ class DetalhesViewSet(ModelViewSet):
 
         # Verificando se já tem detalhes na tarefa.
 
-        if hasattr(todo, "detalhe"): 
-            raise serializers.ValidationError(
-                "Esta tarefa já possui detalhes"
-            )
+        if DetalhesList.objects.filter(todo=todo).exists(): 
+            raise serializer.ValidationError("Esta tarefa já possui detalhes. Use PUT para atualizar")
 
         # Serializer ele já tem o dado do que vem do request, mas nao tem o do todo.
-        serializer.save(data=todo)
+        serializer.save(todo=todo)
 
     def perform_update(self, serializer):
         """Atualiza detalhes existentes"""
@@ -190,7 +207,6 @@ class DetalhesViewSet(ModelViewSet):
         
         if todo_id: 
             todo = self.get_todo(todo_id)
-
             serializer.save(todo=todo)
         else: 
             serializer.save()
