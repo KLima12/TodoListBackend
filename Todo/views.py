@@ -159,11 +159,12 @@ class DetalhesViewSet(ModelViewSet):
     def get_todo(self, todo_id):
         """Valida se a tarefa TODOList existe e pertence ao usuário"""
         return get_object_or_404(
-            TodoList, 
-            id=todo_id, 
-            user=self.request.user
-        )
-    #Criando url e metodo get para ele.
+                    TodoList, 
+                    id=todo_id, 
+                    user=self.request.user
+                ) 
+
+    #Criando url e metodo get para ele. Usei etail=False para buscar detalhe do todo_id e não id do detalhe.
     @action(detail=False, methods=['get'], url_path='by_task')
     def by_task(self, request): 
         todo_id = request.query_params.get('todo_id')
@@ -184,7 +185,7 @@ class DetalhesViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         """Cria detalhes para uma tarefa específica"""
-        todo_id = self.request.data.get('id') or self.request.data.get('id')
+        todo_id = self.request.data.get('id') or self.request.query_params.get('id')
         
         if not todo_id:
             raise serializers.ValidationError(
