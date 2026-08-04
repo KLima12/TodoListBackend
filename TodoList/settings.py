@@ -14,8 +14,11 @@ load_dotenv()
 SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
-# TODO Configurar dps
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "todolistbackend-6gdn.onrender.com"
+    ]
 
 
 # Application definition
@@ -64,7 +67,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "TodoList.wsgi.application"
 
-CORS_ALLOWED_ORIGINS = [    "http://localhost:5173",]
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173","https://todolistfront-taupe.vercel.app"]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
