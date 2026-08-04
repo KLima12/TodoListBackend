@@ -38,7 +38,7 @@ class RegisterView(APIView):
         except Exception as e: 
             print(f"❌ Erro no registro: {str(e)}")
             import traceback
-            traceback.print_exc()  # 👈 Mostra erro completo
+            traceback.print_exc()
             
             return Response(
                 {"detail": f"Erro interno: {str(e)}"},
@@ -150,6 +150,7 @@ class DetalhesViewSet(ModelViewSet):
     """
     serializer_class = DetailsSeriaizer
     permission_classes = [IsAuthenticated]
+    queryset = DetalhesList.objects.all()
 
     def get_queryset(self):
         """Retorna todos os detalhes das tarefas do usuário"""
@@ -211,12 +212,3 @@ class DetalhesViewSet(ModelViewSet):
             serializer.save(todo=todo)
         else: 
             serializer.save()
-   
-    @action(detail=True, methods=['patch'])
-    def toggle_concluido(self, request, pk=None):
-        """
-        Alterna o status de concluído
-        """
-        detalhes = self.get_object() # Pegando DetalhesList
-        detalhes.concluido = not detalhes.concluido
-        detalhes.save()

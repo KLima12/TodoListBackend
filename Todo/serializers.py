@@ -89,4 +89,4 @@ class DetailsSeriaizer(serializers.ModelSerializer):
     class Meta: 
         model = DetalhesList
         fields = ['id', 'detalhes','prioridade', 'concluido']
-        
+        read_only_fields = ['user']        
